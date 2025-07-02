@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SoundManager } from '../utils/SoundManager';
 import { GameStats } from '../utils/GameStats';
+import { CHARACTERS } from '../utils/Characters';
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -27,6 +28,11 @@ export class GameScene extends Phaser.Scene {
   private hasSpawnedGoldenItem: boolean = false;
   private coins: number = 0;
   private coinsText!: Phaser.GameObjects.Text;
+  private characterData: any;
+  private speedMultiplier: number = 1;
+  private jumpMultiplier: number = 1;
+  private hasDoubleJump: boolean = false;
+  private doubleJumpUsed: boolean = false;
   
   constructor() {
     super({ key: 'GameScene' });
@@ -34,11 +40,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.loadCharacterData();
     this.setupWorld();
     this.setupPlayer();
     this.setupUI();
     this.setupInput();
     this.startGame();
+  }
+
+  loadCharacterData() {
+    const stats = GameStats.getStats();
+    this.characterData = CHARACTERS.find(char => char.id === stats.currentCharacter) || CHARACTERS[0];
+    
+    this.speedMultiplier = this.characterData.speed;
+    this.jumpMultiplier = this.characterData.jump;
+    this.hasDoubleJump = this.characterData.special === 'ダブルジャンプ';
+    
+    // 最大速度をキャラクターに合わせて調整
+    this.maxSpeed = 400 * this.speedMultiplier;
   }
 
   setupWorld() {
@@ -101,6 +120,12 @@ export class GameScene extends Phaser.Scene {
       fontSize: '20px',
       color: '#FFD700'
     });
+    
+    // 使用キャラクター表示
+    this.add.text(16, 140, `キャラ: ${this.characterData.name}`, {
+      fontSize: '18px',
+      color: '#FF69B4'
+    });
   }
 
   setupInput() {
@@ -160,7 +185,9 @@ export class GameScene extends Phaser.Scene {
 
   tapPlayer() {
     this.tapCount++;
-    this.playerSpeed = Math.min(this.maxSpeed, this.playerSpeed + 50);
+    const accelerationBase = 50;
+    const acceleration = accelerationBase * this.speedMultiplier;
+    this.playerSpeed = Math.min(this.maxSpeed, this.playerSpeed + acceleration);
     
     // タップ音を再生
     this.soundManager.playSound('tap');
@@ -173,10 +200,22 @@ export class GameScene extends Phaser.Scene {
   }
   
   jumpPlayer() {
+    const baseJumpPower = -400;
+    const jumpPower = baseJumpPower * this.jumpMultiplier;
+    
     if (this.player.body?.touching.down) {
-      this.player.setVelocityY(-400);
+      this.player.setVelocityY(jumpPower);
+      this.doubleJumpUsed = false;
       // ジャンプ音を再生
       this.soundManager.playSound('jump');
+    } else if (this.hasDoubleJump && !this.doubleJumpUsed && this.player.body?.velocity.y! > -200) {
+      // ダブルジャンプ
+      this.player.setVelocityY(jumpPower * 0.8);
+      this.doubleJumpUsed = true;
+      this.soundManager.playSound('jump');
+      
+      // ダブルジャンプエフェクト
+      this.showEffect('ダブルジャンプ！');
     }
   }
 
@@ -210,20 +249,33 @@ export class GameScene extends Phaser.Scene {
     
     if (isSpecial) {
       // 特別なアイテムの効果
-      this.coins += 500;
+      let coinBonus = 500;
+      if (this.characterData.special === 'コイン2倍') {
+        coinBonus *= 2;
+      }
+      this.coins += coinBonus;
       this.coinsText.setText(`コイン: ${this.coins}`);
       this.updateScore(5000);
-      this.showAchievement('+500コイン！');
+      this.showAchievement(`+${coinBonus}コイン！`);
       
       // 特別な音を再生
       this.soundManager.playSound('item');
       this.soundManager.playSound('item'); // 2回再生でより豪華に
     } else {
       // 通常のアイテム
-      this.combo = Math.min(this.combo + 0.5, 5);
+      let comboBonus = 0.5;
+      if (this.characterData.special === 'コンボボーナス+20%') {
+        comboBonus *= 1.2;
+      }
+      this.combo = Math.min(this.combo + comboBonus, 5);
       this.updateScore(100);
       this.comboText.setText(`Combo: x${this.combo.toFixed(1)}`);
-      this.coins += 10;
+      
+      let coinAmount = 10;
+      if (this.characterData.special === 'コイン2倍') {
+        coinAmount *= 2;
+      }
+      this.coins += coinAmount;
       this.coinsText.setText(`コイン: ${this.coins}`);
       
       // アイテム取得音を再生
@@ -367,6 +419,22 @@ export class GameScene extends Phaser.Scene {
       alpha: 0,
       duration: 3000,
       onComplete: () => achievement.destroy()
+    });
+  }
+
+  showEffect(message: string) {
+    const effect = this.add.text(this.player.x, this.player.y - 50, message, {
+      fontSize: '20px',
+      color: '#00FF00',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    this.tweens.add({
+      targets: effect,
+      y: this.player.y - 100,
+      alpha: 0,
+      duration: 1000,
+      onComplete: () => effect.destroy()
     });
   }
 }

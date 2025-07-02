@@ -51,8 +51,30 @@ export class TitleScene extends Phaser.Scene {
       padding: { left: 10, right: 10, top: 5, bottom: 5 }
     }).setOrigin(0.5);
 
-    const startButton = this.add.text(width / 2, height * 0.7, '✨ START ✨', {
-      fontSize: '48px',
+    // キャラクター選択ボタン
+    const charSelectButton = this.add.text(width / 2, height * 0.6, '🎮 キャラクター選択', {
+      fontSize: '32px',
+      color: '#FFFFFF',
+      backgroundColor: '#9400D3',
+      padding: { left: 30, right: 30, top: 10, bottom: 10 }
+    }).setOrigin(0.5);
+    
+    charSelectButton.setInteractive({ useHandCursor: true });
+    
+    charSelectButton.on('pointerover', () => {
+      charSelectButton.setScale(1.1);
+    });
+    
+    charSelectButton.on('pointerout', () => {
+      charSelectButton.setScale(1);
+    });
+    
+    charSelectButton.on('pointerdown', () => {
+      this.scene.start('CharacterSelectScene');
+    });
+
+    const startButton = this.add.text(width / 2, height * 0.75, '✨ クイックスタート ✨', {
+      fontSize: '36px',
       color: '#FFFFFF',
       backgroundColor: '#FF6B35',
       padding: { left: 40, right: 40, top: 10, bottom: 10 }

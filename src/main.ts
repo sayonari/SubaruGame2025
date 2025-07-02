@@ -4,6 +4,7 @@ import { TitleScene } from './scenes/TitleScene';
 import { GameScene } from './scenes/GameScene';
 import { ResultScene } from './scenes/ResultScene';
 import { GachaScene } from './scenes/GachaScene';
+import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -17,7 +18,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [PreloadScene, TitleScene, GameScene, ResultScene, GachaScene],
+  scene: [PreloadScene, TitleScene, GameScene, ResultScene, GachaScene, CharacterSelectScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
