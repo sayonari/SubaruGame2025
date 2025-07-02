@@ -111,11 +111,24 @@ export class TitleScene extends Phaser.Scene {
       color: '#FFD700'
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, height - 50, '🎂 2025.7.2 大空スバル誕生日記念 🎂', {
+    // 誕生日メッセージをより目立たせる
+    const birthdayBg = this.add.rectangle(width / 2, height - 50, 450, 40, 0xFFFFFF, 0.8);
+    birthdayBg.setStrokeStyle(2, 0xFF69B4);
+    
+    const birthdayText = this.add.text(width / 2, height - 50, '🎂 2025.7.2 大空スバル誕生日記念 🎂', {
       fontSize: '18px',
-      color: '#FF69B4',
+      color: '#FF1493',
       fontStyle: 'bold'
     }).setOrigin(0.5);
+    
+    // 誕生日メッセージの点滅
+    this.tweens.add({
+      targets: [birthdayBg, birthdayText],
+      alpha: { from: 0.8, to: 1 },
+      duration: 1000,
+      yoyo: true,
+      repeat: -1
+    });
   }
 
   createBackground() {
@@ -144,6 +157,9 @@ export class TitleScene extends Phaser.Scene {
       const y = Math.random() * height * 0.5;
       this.createCloud(x, y);
     }
+    
+    // カラフルな風船を追加
+    this.createBalloons();
     
     // キラキラ効果
     for (let i = 0; i < 10; i++) {
@@ -312,5 +328,96 @@ export class TitleScene extends Phaser.Scene {
         onComplete: () => container.destroy()
       });
     });
+  }
+
+  createBalloons() {
+    const { width, height } = this.cameras.main;
+    const balloonColors = [
+      0xFF6B6B, // 赤
+      0x4ECDC4, // ターコイズ
+      0x45B7D1, // 青
+      0xF7DC6F, // 黄色
+      0xBB8FCE, // 紫
+      0xFF69B4, // ピンク
+      0x52BE80, // 緑
+      0xF39C12, // オレンジ
+    ];
+
+    // 初期配置の風船
+    for (let i = 0; i < 15; i++) {
+      this.createBalloon(
+        Math.random() * width,
+        height + Math.random() * 200,
+        balloonColors[Math.floor(Math.random() * balloonColors.length)],
+        3000 + Math.random() * 2000
+      );
+    }
+
+    // 定期的に新しい風船を生成
+    this.time.addEvent({
+      delay: 800,
+      callback: () => {
+        this.createBalloon(
+          Math.random() * width,
+          height + 100,
+          balloonColors[Math.floor(Math.random() * balloonColors.length)],
+          4000 + Math.random() * 2000
+        );
+      },
+      loop: true
+    });
+  }
+
+  createBalloon(x: number, y: number, color: number, duration: number) {
+    const graphics = this.add.graphics();
+    
+    // 風船の本体
+    graphics.fillStyle(color, 0.9);
+    graphics.fillEllipse(0, 0, 40, 50);
+    
+    // ハイライト
+    graphics.fillStyle(0xFFFFFF, 0.4);
+    graphics.fillEllipse(-10, -15, 15, 20);
+    
+    // 小さなハイライト
+    graphics.fillStyle(0xFFFFFF, 0.6);
+    graphics.fillCircle(-5, -20, 5);
+    
+    // 紐
+    graphics.lineStyle(1.5, color * 0.8, 0.6);
+    graphics.beginPath();
+    graphics.moveTo(0, 25);
+    graphics.lineTo(2, 35);
+    graphics.lineTo(-2, 45);
+    graphics.lineTo(0, 60);
+    graphics.strokePath();
+    
+    // コンテナに入れる
+    const balloon = this.add.container(x, y, [graphics]);
+    
+    // 揺れながら上昇するアニメーション
+    this.tweens.add({
+      targets: balloon,
+      y: -100,
+      x: x + Math.sin(Math.random() * Math.PI) * 50,
+      duration: duration,
+      ease: 'Linear',
+      onComplete: () => {
+        balloon.destroy();
+      }
+    });
+    
+    // 左右に揺れる
+    this.tweens.add({
+      targets: balloon,
+      x: x + 30,
+      duration: 1000 + Math.random() * 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+    
+    // サイズの変化
+    balloon.setScale(0.8 + Math.random() * 0.4);
   }
 }
