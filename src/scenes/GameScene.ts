@@ -7,6 +7,7 @@ export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private obstacles!: Phaser.Physics.Arcade.Group;
   private items!: Phaser.Physics.Arcade.Group;
+  private bombs!: Phaser.Physics.Arcade.Group;
   private ground!: Phaser.Physics.Arcade.StaticGroup;
   
   private score: number = 0;
@@ -71,10 +72,13 @@ export class GameScene extends Phaser.Scene {
     
     this.obstacles = this.physics.add.group();
     this.items = this.physics.add.group();
+    this.bombs = this.physics.add.group();
   }
 
   setupPlayer() {
-    this.player = this.physics.add.sprite(100, 500, 'subaru');
+    // 選択されたキャラクターのスプライトを使用
+    const characterSprite = this.characterData.id;
+    this.player = this.physics.add.sprite(100, 500, characterSprite);
     this.player.setCollideWorldBounds(true);
     this.player.setBounce(0.2);
     this.player.setScale(0.8);
@@ -85,6 +89,9 @@ export class GameScene extends Phaser.Scene {
     });
     this.physics.add.overlap(this.player, this.items, (_player, item) => {
       this.collectItem(item as Phaser.Physics.Arcade.Sprite);
+    });
+    this.physics.add.overlap(this.player, this.bombs, (_player, bomb) => {
+      this.hitBomb(bomb as Phaser.Physics.Arcade.Sprite);
     });
   }
 
@@ -176,9 +183,31 @@ export class GameScene extends Phaser.Scene {
       loop: true
     });
     
+    // コイン（星）を複数の異なる間隔でスポーン
     this.time.addEvent({
       delay: 3000,
       callback: () => this.spawnItem(),
+      loop: true
+    });
+    
+    // 追加のコインスポーン（より頻繁に）
+    this.time.addEvent({
+      delay: 1500,
+      callback: () => this.spawnItemFromTop(),
+      loop: true
+    });
+    
+    // さらに追加のコインスポーン（ランダムな位置から）
+    this.time.addEvent({
+      delay: 2500,
+      callback: () => this.spawnItemFromRandom(),
+      loop: true
+    });
+    
+    // 爆弾をスポーン
+    this.time.addEvent({
+      delay: 4000,
+      callback: () => this.spawnBomb(),
       loop: true
     });
   }
@@ -242,6 +271,70 @@ export class GameScene extends Phaser.Scene {
     item.setVelocityX(-200);
     item.setScale(0.8);
   }
+  
+  spawnItemFromTop() {
+    if (this.isGameOver) return;
+    
+    // 上から落ちてくるコイン
+    const item = this.items.create(
+      Phaser.Math.Between(200, 700),
+      -20,
+      'star'
+    );
+    item.setVelocityX(Phaser.Math.Between(-100, -50));
+    item.setVelocityY(Phaser.Math.Between(150, 250));
+    item.setScale(0.7);
+    item.setTint(0xFFFF00);
+  }
+  
+  spawnItemFromRandom() {
+    if (this.isGameOver) return;
+    
+    // ランダムな位置からのコイン
+    const side = Phaser.Math.Between(0, 1);
+    let x, y, vx, vy;
+    
+    if (side === 0) {
+      // 右側から
+      x = 820;
+      y = Phaser.Math.Between(200, 400);
+      vx = Phaser.Math.Between(-250, -150);
+      vy = Phaser.Math.Between(-50, 50);
+    } else {
+      // 上から斜めに
+      x = Phaser.Math.Between(400, 800);
+      y = -20;
+      vx = Phaser.Math.Between(-200, -100);
+      vy = Phaser.Math.Between(100, 200);
+    }
+    
+    const item = this.items.create(x, y, 'star');
+    item.setVelocityX(vx);
+    item.setVelocityY(vy);
+    item.setScale(0.6);
+    item.setTint(0x00FF00);
+  }
+  
+  spawnBomb() {
+    if (this.isGameOver) return;
+    
+    const bomb = this.bombs.create(
+      Phaser.Math.Between(600, 800),
+      Phaser.Math.Between(200, 400),
+      'bomb'
+    );
+    bomb.setVelocityX(-250);
+    bomb.setVelocityY(Phaser.Math.Between(-50, 50));
+    bomb.setScale(1.2);
+    
+    // 爆弾を回転させる
+    this.tweens.add({
+      targets: bomb,
+      angle: 360,
+      duration: 1000,
+      repeat: -1
+    });
+  }
 
   collectItem(item: Phaser.Physics.Arcade.Sprite) {
     const isSpecial = item.getData('isSpecial');
@@ -299,6 +392,42 @@ export class GameScene extends Phaser.Scene {
       this.player.x = 50;
     }
   }
+  
+  hitBomb(bomb: Phaser.Physics.Arcade.Sprite) {
+    bomb.destroy();
+    
+    // コインを減らす
+    const coinLoss = Math.min(this.coins, 50);
+    this.coins = Math.max(0, this.coins - coinLoss);
+    this.coinsText.setText(`コイン: ${this.coins}`);
+    
+    // コンボをリセット
+    this.combo = 1;
+    this.comboText.setText(`Combo: x${this.combo}`);
+    
+    // 速度を大幅に減らす
+    this.playerSpeed = Math.max(0, this.playerSpeed - 200);
+    
+    // 画面を大きく揺らす
+    this.cameras.main.shake(500, 0.02);
+    
+    // 爆発音を再生
+    this.soundManager.playSound('hit');
+    this.soundManager.playSound('hit');
+    
+    // 爆発エフェクト
+    const explosion = this.add.circle(bomb.x, bomb.y, 30, 0xFF4500, 0.8);
+    this.tweens.add({
+      targets: explosion,
+      scale: 2,
+      alpha: 0,
+      duration: 300,
+      onComplete: () => explosion.destroy()
+    });
+    
+    // ダメージ表示
+    this.showEffect(`-${coinLoss}コイン!`);
+  }
 
   updateScore(points: number) {
     this.score += Math.floor(points * this.combo);
@@ -352,6 +481,13 @@ export class GameScene extends Phaser.Scene {
     this.items.children.entries.forEach(item => {
       if (item.body && item.body.position.x < -100) {
         item.destroy();
+      }
+    });
+    
+    // 爆弾の削除
+    this.bombs.children.entries.forEach(bomb => {
+      if (bomb.body && (bomb.body.position.x < -100 || bomb.body.position.y > 600)) {
+        bomb.destroy();
       }
     });
     
