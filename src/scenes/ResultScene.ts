@@ -163,6 +163,11 @@ export class ResultScene extends Phaser.Scene {
       
       rankingContainer.add([rankText, scoreText]);
     });
+    
+    // ランキング背景を追加（見やすくするため）
+    const rankingBg = this.add.rectangle(width / 2, 460, 380, 180, 0xFFFFFF, 0.3);
+    rankingBg.setStrokeStyle(2, 0xFF69B4, 0.5);
+    this.children.sendToBack(rankingBg);
   }
 
   createBackground() {
@@ -352,32 +357,34 @@ export class ResultScene extends Phaser.Scene {
       existingContainer.destroy();
     }
     
+    // オンラインランキングコンテナ（右側に配置）
+    const onlineContainer = this.add.container(width - 150, 380);
+    onlineContainer.name = 'onlineRankingContainer';
+    
     // オンラインランキングのタイトル
-    const onlineTitle = this.add.text(width - 200, 120, '🌐 オンラインランキング', {
-      fontSize: '20px',
+    const onlineTitle = this.add.text(0, 0, '🌐 オンラインランキング', {
+      fontSize: '18px',
       color: '#FF69B4',
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    
-    const onlineContainer = this.add.container(width - 200, 160);
-    onlineContainer.name = 'onlineRankingContainer';
     onlineContainer.add(onlineTitle);
     
     // トップ10を取得
     const topRankings = OnlineRanking.getTopRankings(10);
     const userRank = OnlineRanking.getUserRank(this.score);
     
-    topRankings.forEach((entry, index) => {
+    // 最大5件のみ表示してコンパクトに
+    topRankings.slice(0, 5).forEach((entry, index) => {
       const isCurrentUser = entry.score === this.score && entry.name === this.playerName;
       const color = isCurrentUser ? '#FF6B35' : '#666666';
       const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
       
       const text = this.add.text(
         0,
-        index * 25,
-        `${medal} ${entry.name.substring(0, 8)}... ${entry.score}`,
+        30 + index * 22,
+        `${medal} ${entry.name.substring(0, 6)}... ${entry.score}`,
         {
-          fontSize: '14px',
+          fontSize: '13px',
           color: color,
           fontStyle: isCurrentUser ? 'bold' : 'normal'
         }
@@ -386,14 +393,14 @@ export class ResultScene extends Phaser.Scene {
       onlineContainer.add(text);
     });
     
-    // ユーザーの順位を表示
-    if (userRank > 10) {
+    // ユーザーの順位を表示（5位以下の場合）
+    if (userRank > 5 && this.playerName) {
       const userRankText = this.add.text(
         0,
-        260,
+        160,
         `あなたの順位: ${userRank}位`,
         {
-          fontSize: '16px',
+          fontSize: '14px',
           color: '#FF6B35',
           fontStyle: 'bold'
         }
