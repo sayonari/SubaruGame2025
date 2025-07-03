@@ -24,14 +24,16 @@ export class TitleScene extends Phaser.Scene {
       this.showDailyBonus(dailyBonus);
     }
     
-    // タイトル
+    // タイトル（画面サイズに応じてフォントサイズを調整）
     const titleText = stats.totalPlays >= 50 ? 'スバルのしゅばしゅばマスター' : 'スバルのしゅばしゅば大冒険';
+    const fontSize = width < 600 ? '28px' : '40px';
     const title = this.add.text(width / 2, height / 3, titleText, {
-      fontSize: '40px',
+      fontSize: fontSize,
       color: stats.totalPlays >= 20 ? '#FFD700' : '#FF6B9D',
       fontStyle: 'bold',
       stroke: '#FFFFFF',
-      strokeThickness: 6
+      strokeThickness: 6,
+      wordWrap: { width: width * 0.8 }
     }).setOrigin(0.5);
     
     // タイトルアニメーション
@@ -44,19 +46,22 @@ export class TitleScene extends Phaser.Scene {
       repeat: -1
     });
 
+    const promptFontSize = width < 600 ? '16px' : '20px';
     this.add.text(width / 2, height / 2, '画面をタップ/クリックして進む！', {
-      fontSize: '20px',
+      fontSize: promptFontSize,
       color: '#FFFFFF',
       backgroundColor: '#FF69B4',
       padding: { left: 10, right: 10, top: 5, bottom: 5 }
     }).setOrigin(0.5);
 
     // キャラクター選択ボタン
+    const buttonFontSize = width < 600 ? '24px' : '32px';
+    const buttonPadding = width < 600 ? { left: 20, right: 20, top: 8, bottom: 8 } : { left: 30, right: 30, top: 10, bottom: 10 };
     const charSelectButton = this.add.text(width / 2, height * 0.6, '🎮 キャラクター選択', {
-      fontSize: '32px',
+      fontSize: buttonFontSize,
       color: '#FFFFFF',
       backgroundColor: '#9400D3',
-      padding: { left: 30, right: 30, top: 10, bottom: 10 }
+      padding: buttonPadding
     }).setOrigin(0.5);
     
     charSelectButton.setInteractive({ useHandCursor: true });
@@ -74,10 +79,10 @@ export class TitleScene extends Phaser.Scene {
     });
 
     const startButton = this.add.text(width / 2, height * 0.75, '✨ クイックスタート ✨', {
-      fontSize: '36px',
+      fontSize: buttonFontSize,
       color: '#FFFFFF',
       backgroundColor: '#FF6B35',
-      padding: { left: 40, right: 40, top: 10, bottom: 10 }
+      padding: buttonPadding
     }).setOrigin(0.5);
 
     startButton.setInteractive({ useHandCursor: true });

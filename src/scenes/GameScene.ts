@@ -116,8 +116,9 @@ export class GameScene extends Phaser.Scene {
       color: '#000'
     }).setOrigin(1, 0);
     
-    // 操作説明
-    this.add.text(400, 16, '左タップ:ジャンプ / 右タップ:加速', {
+    // 操作説明（画面サイズに応じて調整）
+    const instructionText = this.cameras.main.width < 600 ? 'タップで操作' : '左タップ:ジャンプ / 右タップ:加速';
+    this.add.text(400, 16, instructionText, {
       fontSize: '16px',
       color: '#666'
     }).setOrigin(0.5, 0);
@@ -136,6 +137,34 @@ export class GameScene extends Phaser.Scene {
   }
 
   setupInput() {
+    // タッチ領域を視覚的に表示（モバイル向け）
+    if (this.sys.game.device.input.touch) {
+      // 左側ジャンプエリア
+      const leftArea = this.add.rectangle(this.cameras.main.width / 4, this.cameras.main.height - 100, 
+        this.cameras.main.width / 2 - 20, 180, 0x0000FF, 0.1);
+      leftArea.setInteractive();
+      
+      // 右側加速エリア  
+      const rightArea = this.add.rectangle(this.cameras.main.width * 3 / 4, this.cameras.main.height - 100,
+        this.cameras.main.width / 2 - 20, 180, 0xFF0000, 0.1);
+      rightArea.setInteractive();
+      
+      // タッチエリアのラベル
+      this.add.text(this.cameras.main.width / 4, this.cameras.main.height - 100, 'ジャンプ', {
+        fontSize: '24px',
+        color: '#FFFFFF',
+        backgroundColor: '#0000FFAA',
+        padding: { left: 10, right: 10, top: 5, bottom: 5 }
+      }).setOrigin(0.5);
+      
+      this.add.text(this.cameras.main.width * 3 / 4, this.cameras.main.height - 100, '加速', {
+        fontSize: '24px', 
+        color: '#FFFFFF',
+        backgroundColor: '#FF0000AA',
+        padding: { left: 10, right: 10, top: 5, bottom: 5 }
+      }).setOrigin(0.5);
+    }
+    
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!this.isGameOver) {
         // 画面の左半分をタップしたらジャンプ、右半分をタップしたら加速

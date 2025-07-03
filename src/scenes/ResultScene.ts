@@ -224,11 +224,19 @@ export class ResultScene extends Phaser.Scene {
     this.nameInputElement.placeholder = 'あなたの名前';
     this.nameInputElement.maxLength = 10;
     this.nameInputElement.style.position = 'absolute';
-    this.nameInputElement.style.left = `${width / 2 - 100}px`;
-    this.nameInputElement.style.top = '280px';
-    this.nameInputElement.style.width = '200px';
-    this.nameInputElement.style.height = '30px';
-    this.nameInputElement.style.fontSize = '18px';
+    
+    // ゲームキャンバスの実際のサイズと位置を取得
+    const gameCanvas = this.game.canvas;
+    const rect = gameCanvas.getBoundingClientRect();
+    const scaleX = rect.width / this.cameras.main.width;
+    const scaleY = rect.height / this.cameras.main.height;
+    
+    // スケールを考慮した位置を設定
+    this.nameInputElement.style.left = `${rect.left + (width / 2 - 100) * scaleX}px`;
+    this.nameInputElement.style.top = `${rect.top + 280 * scaleY}px`;
+    this.nameInputElement.style.width = `${200 * scaleX}px`;
+    this.nameInputElement.style.height = `${30 * scaleY}px`;
+    this.nameInputElement.style.fontSize = `${18 * Math.min(scaleX, scaleY)}px`;
     this.nameInputElement.style.textAlign = 'center';
     this.nameInputElement.style.border = '2px solid #FF69B4';
     this.nameInputElement.style.borderRadius = '5px';
@@ -238,11 +246,11 @@ export class ResultScene extends Phaser.Scene {
     this.registerButton = document.createElement('button');
     this.registerButton.textContent = '名前登録';
     this.registerButton.style.position = 'absolute';
-    this.registerButton.style.left = `${width / 2 + 120}px`;
-    this.registerButton.style.top = '280px';
-    this.registerButton.style.width = '80px';
-    this.registerButton.style.height = '30px';
-    this.registerButton.style.fontSize = '16px';
+    this.registerButton.style.left = `${rect.left + (width / 2 + 120) * scaleX}px`;
+    this.registerButton.style.top = `${rect.top + 280 * scaleY}px`;
+    this.registerButton.style.width = `${80 * scaleX}px`;
+    this.registerButton.style.height = `${30 * scaleY}px`;
+    this.registerButton.style.fontSize = `${16 * Math.min(scaleX, scaleY)}px`;
     this.registerButton.style.backgroundColor = '#FF69B4';
     this.registerButton.style.color = '#FFFFFF';
     this.registerButton.style.border = 'none';
@@ -250,33 +258,60 @@ export class ResultScene extends Phaser.Scene {
     this.registerButton.style.cursor = 'pointer';
     this.registerButton.style.fontWeight = 'bold';
     
-    const gameContainer = document.getElementById('game-container');
-    if (gameContainer) {
-      gameContainer.appendChild(this.nameInputElement);
-      gameContainer.appendChild(this.registerButton);
+    // bodyに直接追加（game-containerはキャンバスを含むので、その上に配置）
+    document.body.appendChild(this.nameInputElement);
+    document.body.appendChild(this.registerButton);
+    
+    // リサイズ時に位置を更新
+    const updateInputPosition = () => {
+      const gameCanvas = this.game.canvas;
+      const rect = gameCanvas.getBoundingClientRect();
+      const scaleX = rect.width / this.cameras.main.width;
+      const scaleY = rect.height / this.cameras.main.height;
       
-      // 日本語入力開始
-      this.nameInputElement.addEventListener('compositionstart', () => {
-        this.isComposing = true;
-      });
+      if (this.nameInputElement) {
+        this.nameInputElement.style.left = `${rect.left + (width / 2 - 100) * scaleX}px`;
+        this.nameInputElement.style.top = `${rect.top + 280 * scaleY}px`;
+        this.nameInputElement.style.width = `${200 * scaleX}px`;
+        this.nameInputElement.style.height = `${30 * scaleY}px`;
+        this.nameInputElement.style.fontSize = `${18 * Math.min(scaleX, scaleY)}px`;
+      }
       
-      // 日本語入力終了
-      this.nameInputElement.addEventListener('compositionend', () => {
-        this.isComposing = false;
-      });
-      
-      // 登録ボタンクリック
-      this.registerButton.addEventListener('click', () => {
+      if (this.registerButton) {
+        this.registerButton.style.left = `${rect.left + (width / 2 + 120) * scaleX}px`;
+        this.registerButton.style.top = `${rect.top + 280 * scaleY}px`;
+        this.registerButton.style.width = `${80 * scaleX}px`;
+        this.registerButton.style.height = `${30 * scaleY}px`;
+        this.registerButton.style.fontSize = `${16 * Math.min(scaleX, scaleY)}px`;
+      }
+    };
+    
+    window.addEventListener('resize', updateInputPosition);
+    this.events.on('shutdown', () => {
+      window.removeEventListener('resize', updateInputPosition);
+    });
+    
+    // 日本語入力開始
+    this.nameInputElement.addEventListener('compositionstart', () => {
+      this.isComposing = true;
+    });
+    
+    // 日本語入力終了
+    this.nameInputElement.addEventListener('compositionend', () => {
+      this.isComposing = false;
+    });
+    
+    // 登録ボタンクリック
+    this.registerButton.addEventListener('click', () => {
+      this.registerName();
+    });
+    
+    // Enterキーでも登録
+    this.nameInputElement.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !this.isComposing) {
         this.registerName();
-      });
-      
-      // Enterキーでも登録
-      this.nameInputElement.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !this.isComposing) {
-          this.registerName();
-        }
-      });
-    }
+      }
+    });
   }
 
   registerName() {
