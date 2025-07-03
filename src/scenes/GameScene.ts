@@ -23,7 +23,6 @@ export class GameScene extends Phaser.Scene {
   private distanceText!: Phaser.GameObjects.Text;
   
   private lastObstacleX: number = 800;
-  private playerSpeed: number = 0;
   private maxSpeed: number = 400;
   private soundManager: SoundManager;
   private hasSpawnedGoldenItem: boolean = false;
@@ -34,6 +33,12 @@ export class GameScene extends Phaser.Scene {
   private jumpMultiplier: number = 1;
   private hasDoubleJump: boolean = false;
   private doubleJumpUsed: boolean = false;
+  
+  // 慣性用の変数
+  private velocityX: number = 0;
+  private acceleration: number = 0;
+  private deceleration: number = 0.95; // 減速率
+  private isJumping: boolean = false;
   
   constructor() {
     super({ key: 'GameScene' });
@@ -243,9 +248,10 @@ export class GameScene extends Phaser.Scene {
 
   tapPlayer() {
     this.tapCount++;
-    const accelerationBase = 50;
-    const acceleration = accelerationBase * this.speedMultiplier;
-    this.playerSpeed = Math.min(this.maxSpeed, this.playerSpeed + acceleration);
+    
+    // 加速度を追加（既存の速度に加算）
+    const accelerationBase = 30;
+    this.acceleration += accelerationBase * this.speedMultiplier;
     
     // タップ音を再生
     this.soundManager.playSound('tap');
@@ -254,6 +260,17 @@ export class GameScene extends Phaser.Scene {
     this.player.setScale(0.9);
     this.time.delayedCall(100, () => {
       this.player.setScale(0.8);
+    });
+    
+    // 視覚的なブーストエフェクト
+    const boostEffect = this.add.circle(this.player.x - 20, this.player.y, 10, 0xFFFF00, 0.8);
+    this.tweens.add({
+      targets: boostEffect,
+      x: this.player.x - 60,
+      alpha: 0,
+      scale: 0.5,
+      duration: 300,
+      onComplete: () => boostEffect.destroy()
     });
   }
   
@@ -264,8 +281,15 @@ export class GameScene extends Phaser.Scene {
     if (this.player.body?.touching.down) {
       this.player.setVelocityY(jumpPower);
       this.doubleJumpUsed = false;
+      this.isJumping = true;
       // ジャンプ音を再生
       this.soundManager.playSound('jump');
+      
+      // ジャンプ時の横方向の勢いを保持
+      if (this.velocityX > 50) {
+        // 前方ジャンプの場合、少し上向きの力を追加
+        this.player.setVelocityY(jumpPower * 0.9);
+      }
     } else if (this.hasDoubleJump && !this.doubleJumpUsed && this.player.body?.velocity.y! > -200) {
       // ダブルジャンプ
       this.player.setVelocityY(jumpPower * 0.8);
@@ -407,18 +431,26 @@ export class GameScene extends Phaser.Scene {
 
   hitObstacle() {
     this.combo = 1;
-    this.playerSpeed = Math.max(0, this.playerSpeed - 150);
     this.comboText.setText(`Combo: x${this.combo}`);
+    
+    // 慣性を考慮した速度減少
+    this.velocityX *= 0.3; // 速度を70%減少
+    this.acceleration = 0; // 加速をリセット
     
     this.cameras.main.shake(200, 0.01);
     
     // ヒット音を再生
     this.soundManager.playSound('hit');
     
-    // プレイヤーを少し後ろに戻す
-    this.player.x -= 50;
+    // 後方にノックバック（慣性を考慮）
+    this.player.x -= 30;
     if (this.player.x < 50) {
       this.player.x = 50;
+    }
+    
+    // 少し上に跳ね上がる
+    if (this.player.body?.touching.down) {
+      this.player.setVelocityY(-200);
     }
   }
   
@@ -434,8 +466,18 @@ export class GameScene extends Phaser.Scene {
     this.combo = 1;
     this.comboText.setText(`Combo: x${this.combo}`);
     
-    // 速度を大幅に減らす
-    this.playerSpeed = Math.max(0, this.playerSpeed - 200);
+    // 慣性を大幅に減少
+    this.velocityX *= 0.2; // 速度を80%減少
+    this.acceleration = 0; // 加速をリセット
+    
+    // 爆発による後方ノックバック
+    this.player.x -= 40;
+    if (this.player.x < 50) {
+      this.player.x = 50;
+    }
+    
+    // 爆発で上に吹き飛ばす
+    this.player.setVelocityY(-300);
     
     // 画面を大きく揺らす
     this.cameras.main.shake(500, 0.02);
@@ -466,27 +508,60 @@ export class GameScene extends Phaser.Scene {
   update() {
     if (this.isGameOver) return;
     
-    // プレイヤーの速度を減衰
-    this.playerSpeed = Math.max(0, this.playerSpeed - 3);
+    // 加速度を速度に適用
+    this.velocityX += this.acceleration;
+    this.velocityX = Math.min(this.velocityX, this.maxSpeed);
     
-    // プレイヤーを右に移動
-    this.player.x += this.playerSpeed * 0.016; // 60FPSを想定
+    // 減速（慣性）
+    if (this.acceleration <= 0) {
+      this.velocityX *= this.deceleration;
+    }
     
-    // 走っている時は少し傾ける
-    if (this.playerSpeed > 100) {
-      this.player.angle = 5;
+    // 加速度を徐々に減らす
+    this.acceleration *= 0.9;
+    if (this.acceleration < 0.1) this.acceleration = 0;
+    
+    // 最小速度の設定
+    if (this.velocityX < 1) this.velocityX = 0;
+    
+    // プレイヤーを右に移動（慣性を考慮）
+    this.player.x += this.velocityX * 0.016; // 60FPSを想定
+    
+    // 着地判定
+    if (this.player.body?.touching.down && this.isJumping) {
+      this.isJumping = false;
+    }
+    
+    // 走っている時は少し傾ける（速度に応じて）
+    if (this.velocityX > 100) {
+      const targetAngle = Math.min(this.velocityX / 50, 10);
+      this.player.angle = Phaser.Math.Linear(this.player.angle, targetAngle, 0.1);
     } else {
-      this.player.angle = 0;
+      this.player.angle = Phaser.Math.Linear(this.player.angle, 0, 0.1);
+    }
+    
+    // ジャンプ中の傾き
+    if (!this.player.body?.touching.down) {
+      const yVel = this.player.body?.velocity.y || 0;
+      if (yVel < -100) {
+        this.player.angle = -5; // 上昇中
+      } else if (yVel > 100) {
+        this.player.angle = 15; // 下降中
+      }
     }
     
     // スコアと距離の更新
-    if (this.playerSpeed > 0) {
-      this.distance += this.playerSpeed * 0.01;
+    if (this.velocityX > 0) {
+      this.distance += this.velocityX * 0.01;
       this.distanceText.setText(`Distance: ${Math.floor(this.distance)}m`);
       this.updateScore(1);
       
-      // 走っている時は上下に揺れる
-      this.player.y = 500 + Math.sin(this.time.now * 0.01) * 3;
+      // 走っている時は上下に揺れる（地上にいる時のみ）
+      if (this.player.body?.touching.down) {
+        const baseY = 500;
+        const bounce = Math.sin(this.time.now * 0.01 * (this.velocityX / 100)) * 2;
+        this.player.y = baseY + bounce;
+      }
       
       // 5000m超えたら特別なアイテムを出現
       if (this.distance >= 5000 && !this.hasSpawnedGoldenItem) {
@@ -498,6 +573,7 @@ export class GameScene extends Phaser.Scene {
         this.showAchievement('ゴールデンスバルをアンロック！');
       }
     }
+    
     
     // 障害物の削除
     this.obstacles.children.entries.forEach(obstacle => {
